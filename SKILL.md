@@ -68,6 +68,11 @@ python main.py --date 28.03       # specific date (DD.MM)
 
 Each line: `{number}. {subject} ({time_and_room}): {homework_text} [файлы: ...]`
 
+**How to present homework to the user:**
+- Print homework **exactly as it appears in the script output** — do not rephrase, summarize, translate, or reformat the text. Copy it verbatim.
+- After printing homework, **immediately send all downloaded files** from `{baseDir}/scripts/homeworks/files/` to the user (attach them in the response).
+- After the files are sent, **delete them** from `{baseDir}/scripts/homeworks/files/` to keep the directory clean.
+
 When the user asks "what's my homework", "what's assigned for tomorrow", or similar — run this command and present the output.
 
 ### 2. Grades Screenshot — `scripts/marks/grades.py`
