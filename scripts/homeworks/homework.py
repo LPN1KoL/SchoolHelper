@@ -1,10 +1,7 @@
-import sys
 import os
 import re
-import time
 import urllib.request
 from datetime import datetime, timedelta
-from selenium.webdriver.common.by import By
 
 FILES_DIR = os.path.join(os.path.dirname(__file__), "files")
 
@@ -15,48 +12,57 @@ MONTHS = {
 }
 
 
-def parse_homework(driver):
+def parse_homework(page):
     """Navigate to /marks and parse homework assignments grouped by day."""
     print("Parsing homework from /marks...", flush=True)
-    driver.get("https://dnevnik.ru/marks")
-    time.sleep(5)
+    page.goto("https://dnevnik.ru/marks", wait_until="domcontentloaded")
 
-    if "login" in driver.current_url:
-        print("Not authenticated, cannot access /marks", flush=True)
+    try:
+        page.wait_for_selector('[data-test-id^="day-"]', timeout=15000)
+    except Exception:
+        if "login" in page.url:
+            print("Not authenticated, cannot access /marks", flush=True)
+            return []
+        body = (page.text_content("body") or "")[:500]
+        print(f"Could not parse homework. Page text preview:\n{body}", flush=True)
         return []
 
     result = []
 
-    days = driver.find_elements(By.CSS_SELECTOR, '[data-test-id^="day-"]:not([data-test-id="day-cards"]):not([data-test-id="day-selector"])')
+    days = page.query_selector_all(
+        '[data-test-id^="day-"]:not([data-test-id="day-cards"]):not([data-test-id="day-selector"])'
+    )
     for day in days:
-        date_el = day.find_elements(By.CSS_SELECTOR, '[data-test-id^="card-date-"]')
-        date_text = date_el[0].text.strip() if date_el else ""
+        date_el = day.query_selector('[data-test-id^="card-date-"]')
+        date_text = (date_el.text_content() or "").strip() if date_el else ""
 
-        lessons = [el for el in day.find_elements(By.CSS_SELECTOR, '[data-test-id^="lesson-"]')
-                   if el.get_attribute("data-test-id").count("-") == 1]
+        lessons = [
+            el for el in day.query_selector_all('[data-test-id^="lesson-"]')
+            if (el.get_attribute("data-test-id") or "").count("-") == 1
+        ]
 
         for lesson in lessons:
             lesson_id = lesson.get_attribute("data-test-id")
 
-            subj_el = lesson.find_elements(By.CSS_SELECTOR, '[data-test-id^="subject-name_"]')
-            subject = subj_el[0].text.strip() if subj_el else ""
+            subj_el = lesson.query_selector('[data-test-id^="subject-name_"]')
+            subject = (subj_el.text_content() or "").strip() if subj_el else ""
 
-            hw_el = lesson.find_elements(By.CSS_SELECTOR, f'[data-test-id="{lesson_id}-homework-text"]')
-            hw_text = hw_el[0].text.strip() if hw_el else ""
+            hw_el = lesson.query_selector(f'[data-test-id="{lesson_id}-homework-text"]')
+            hw_text = (hw_el.text_content() or "").strip() if hw_el else ""
 
-            time_el = lesson.find_elements(By.CSS_SELECTOR, f'[data-test-id="{lesson_id}-timeAndPlace"]')
-            time_text = time_el[0].text.strip() if time_el else ""
+            time_el = lesson.query_selector(f'[data-test-id="{lesson_id}-timeAndPlace"]')
+            time_text = (time_el.text_content() or "").strip() if time_el else ""
 
-            num_el = lesson.find_elements(By.CSS_SELECTOR, f'[data-test-id="{lesson_id}-number"]')
-            num_text = num_el[0].text.strip() if num_el else ""
+            num_el = lesson.query_selector(f'[data-test-id="{lesson_id}-number"]')
+            num_text = (num_el.text_content() or "").strip() if num_el else ""
 
             # Collect attached files
             files = []
-            file_container = lesson.find_elements(By.CSS_SELECTOR, f'[data-test-id="{lesson_id}-files"]')
+            file_container = lesson.query_selector(f'[data-test-id="{lesson_id}-files"]')
             if file_container:
-                for link in file_container[0].find_elements(By.TAG_NAME, "a"):
+                for link in file_container.query_selector_all("a"):
                     href = link.get_attribute("href") or ""
-                    name = link.text.strip()
+                    name = (link.text_content() or "").strip()
                     if href:
                         files.append({"name": name, "url": href})
 
@@ -74,8 +80,8 @@ def parse_homework(driver):
         print(f"Parsed {len(result)} lessons", flush=True)
         return result
 
-    body = driver.find_element(By.TAG_NAME, "body").text
-    print(f"Could not parse homework. Page text preview:\n{body[:500]}", flush=True)
+    body = (page.text_content("body") or "")[:500]
+    print(f"Could not parse homework. Page text preview:\n{body}", flush=True)
     return []
 
 

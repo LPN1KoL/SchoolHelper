@@ -1,13 +1,13 @@
 ---
 name: dnevnik-checker
-description: Fetch homework, grades screenshot, and grade monitoring from Dnevnik.ru (Russian school diary) via Selenium
-metadata: {"openclaw": {"requires": {"bins": ["python3", "chromedriver"], "env": ["LOGIN", "PASSWORD", "SECRET_KEY", "REGION", "PROFILE_KEYWORD"]}, "os": ["win32", "linux", "darwin"], "emoji": "📚"}}
+description: Fetch homework, grades screenshot, and grade monitoring from Dnevnik.ru (Russian school diary) via Playwright
+metadata: {"openclaw": {"requires": {"bins": ["python3"], "env": ["LOGIN", "PASSWORD", "SECRET_KEY", "REGION", "PROFILE_KEYWORD"]}, "os": ["win32", "linux", "darwin"], "emoji": "📚"}}
 user-invocable: true
 ---
 
 # Dnevnik.ru Checker
 
-You are controlling a Selenium-based bot that interacts with Dnevnik.ru — a Russian electronic school diary. The bot authenticates via Gosuslugi (ESIA) with TOTP 2FA, then scrapes homework assignments, takes grade screenshots, and can monitor for new grades in real time.
+You are controlling a Playwright-based bot that interacts with Dnevnik.ru — a Russian electronic school diary. The bot authenticates via Gosuslugi (ESIA) with TOTP 2FA, then scrapes homework assignments, takes grade screenshots, and can monitor for new grades in real time.
 
 All commands below must be run from `{baseDir}` with the virtualenv activated:
 
@@ -49,7 +49,7 @@ python main.py --date 28.03       # specific date (DD.MM)
 ```
 
 **What it does:**
-1. Logs into Dnevnik.ru (or reuses saved cookies)
+1. Launches headless Chromium via Playwright, logs into Dnevnik.ru (or reuses saved cookies)
 2. Takes a semester grades screenshot → `{baseDir}/scripts/marks/grades.png`
 3. Parses homework from /marks page
 4. Filters by the requested date
@@ -93,12 +93,13 @@ python monitor.py
 ```
 
 **What it does:**
-1. Logs into Dnevnik.ru
+1. Launches headless Chromium via Playwright, logs into Dnevnik.ru
 2. Opens the semester grades page
 3. Every 30 seconds: refreshes, compares marks, logs and notifies on new ones
 4. Auto re-logins if the session expires
-5. Logs to `{baseDir}/grades_log.txt`
-6. Sends Telegram messages if `TG_BOT_TOKEN` and `TG_CHAT_ID` are set
+5. Persists known grade IDs to `{baseDir}/known_ids.json` (survives restarts)
+6. Logs to `{baseDir}/grades_log.txt`
+7. Sends Telegram messages (with HTML escaping) if `TG_BOT_TOKEN` and `TG_CHAT_ID` are set
 
 **Important:** This process runs indefinitely. Launch it in the background. Stop it with Ctrl+C or by killing the process.
 

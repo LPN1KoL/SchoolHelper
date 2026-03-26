@@ -1,42 +1,37 @@
 import os
-import time
-from selenium.webdriver.common.by import By
 
 GRADES_FILE = os.path.join(os.path.dirname(__file__), "grades.png")
 
 
-def screenshot_grades(driver):
-    """Navigate to semester marks tab and screenshot the grades table."""
+def screenshot_grades(page):
+    """Navigate to semester marks and screenshot the grades table."""
     print("Taking semester grades screenshot...", flush=True)
-    driver.get("https://dnevnik.ru/marks")
-    time.sleep(5)
+    page.goto("https://dnevnik.ru/marks/period", wait_until="domcontentloaded")
 
-    if "login" in driver.current_url:
-        print("Not authenticated, cannot access /marks", flush=True)
-        return None
-
-    # Click "По семестрам" tab
-    tab = driver.find_elements(By.CSS_SELECTOR, '[data-test-id="tab-period"]')
-    if tab:
-        driver.execute_script("arguments[0].click();", tab[0])
-        time.sleep(3)
-
-    # Screenshot the subjects table container
-    container = driver.find_elements(By.CSS_SELECTOR, '[data-test-id="subjects-container"]')
-    if container:
-        driver.execute_script("arguments[0].scrollIntoView({block: 'start'});", container[0])
-        time.sleep(1)
-        height = driver.execute_script("return arguments[0].scrollHeight", container[0])
-        top = driver.execute_script("return arguments[0].getBoundingClientRect().top + window.scrollY", container[0])
-        driver.set_window_size(1920, int(top + height + 100))
-        time.sleep(1)
-
-        container[0].screenshot(GRADES_FILE)
-        print(f"Grades screenshot saved: {GRADES_FILE}", flush=True)
-        driver.set_window_size(1920, 1080)
+    try:
+        page.wait_for_selector(
+            '[data-test-id="subjects-container"]', timeout=15000
+        )
+    except Exception:
+        if "login" in page.url:
+            print("Not authenticated, cannot access /marks", flush=True)
+            return None
+        # Try full page screenshot as fallback
+        page.screenshot(path=GRADES_FILE, full_page=True)
+        print(f"Full page screenshot saved (fallback): {GRADES_FILE}", flush=True)
         return GRADES_FILE
 
-    # Fallback: screenshot full page
-    driver.save_screenshot(GRADES_FILE)
-    print(f"Full page screenshot saved (fallback): {GRADES_FILE}", flush=True)
+    container = page.locator('[data-test-id="subjects-container"]')
+
+    # Resize viewport to fit the entire table
+    height = container.evaluate("el => el.scrollHeight")
+    top = container.evaluate(
+        "el => el.getBoundingClientRect().top + window.scrollY"
+    )
+    page.set_viewport_size({"width": 1920, "height": int(top + height + 100)})
+
+    container.screenshot(path=GRADES_FILE)
+    print(f"Grades screenshot saved: {GRADES_FILE}", flush=True)
+
+    page.set_viewport_size({"width": 1920, "height": 1080})
     return GRADES_FILE
